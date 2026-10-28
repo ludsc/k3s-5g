@@ -1,0 +1,9 @@
+# Ignora a pasta com os estados pesados das VMs
+estados-vms/
+*.save
+*.save.old
+
+# Ignora senhas e arquivos sensiveis gerados
+token-master.txt
+user-data*.yaml
+network*.yaml
