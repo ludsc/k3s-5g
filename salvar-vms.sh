@@ -12,12 +12,23 @@ for vm in "${VMS[@]}"; do
     STATUS=$(sudo virsh domstate $vm 2>/dev/null)
     
     if [ "$STATUS" = "executando" ]; then
-        echo "Salvando o estado da VM: $vm..."
-        # O comando save grava a RAM no disco e desliga a VM
-        sudo virsh save $vm --file "$DIR_ESTADOS/$vm.save"
+        echo "Preparando a VM $vm..."
+        
+        # 1. Procura se há algum CD-ROM do cloud-init inserido na VM
+        CD_DEV=$(sudo virsh domblklist $vm 2>/dev/null | grep 'cloudinit.iso' | awk '{print $1}')
+        
+        # 2. Se encontrar, ejeta o CD-ROM "ao vivo" (live) antes de salvar
+        if [ -n "$CD_DEV" ]; then
+            echo " - Ejetando $CD_DEV (cloud-init ISO temporário)..."
+            sudo virsh change-media $vm "$CD_DEV" --eject --live >/dev/null 2>&1
+        fi
+
+        # 3. Agora salva a VM de forma limpa
+        echo " - Salvando a memória da VM no disco..."
+        sudo virsh save $vm "$DIR_ESTADOS/$vm.save"
     else
         echo "A VM $vm não está rodando (Status: $STATUS). Ignorando..."
     fi
 done
 
-echo "Todas as VMs ativas foram salvas e desligadas!"
+echo "Todas as VMs ativas foram salvas e desligadas com sucesso!"
