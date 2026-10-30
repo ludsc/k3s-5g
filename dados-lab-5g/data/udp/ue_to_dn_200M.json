@@ -1,0 +1,10 @@
+{
+	"start":	{
+		"connected":	[],
+		"version":	"iperf 3.9",
+		"system_info":	"Linux ueransim-gnb-ues-5f567f5864-vnjht 6.1.0-54-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.190-1 (2026-10-16) x86_64"
+	},
+	"intervals":	[],
+	"end":	{
+	}
+}
