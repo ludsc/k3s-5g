@@ -6,7 +6,7 @@ set -uo pipefail
 NS="${NS:?defina NS (namespace)}"
 UE_POD="${UE_POD:?defina UE_POD (ex.: deployment/ueransim-gnb-ues)}"
 UE_CONTAINER="${UE_CONTAINER:-}"        # só se o pod tiver mais de um container
-DN_IP="${DN_IP:-10.42.2.37}"            # IP do pod iperf-server
+DN_IP="${DN_IP:-10.42.2.64}"            # IP do pod iperf-server
 UE_IF="${UE_IF:-uesimtun0}"             # interface do túnel no UE (usada no ping)
 UE_IP="${UE_IP:-}"                      # IP do UE no túnel (se vazio, é detectado pelo ping)
 DUR="${DUR:-60}"                        # duração de cada teste (s)

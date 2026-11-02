@@ -36,6 +36,14 @@ O `kubectl` é a ferramenta para conversar com o cluster. *Sempre execute no Mas
   sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
   sudo chown -R $USER:$USER ~/.kube
   chmod 600 ~/.kube/config
+  mkdir -p ~/.kube
+  ```
+* **Configurar ambiente para dar comandos de forma remota""==**
+  ```bash
+  ssh USUARIO@192.168.121.50 "sudo cat /etc/rancher/k3s/k3s.yaml" > ~/.kube/k3s.yaml
+  sed -i 's/127.0.0.1/192.168.121.50/' ~/.kube/k3s.yaml
+  export KUBECONFIG=~/.kube/k3s.yaml
+  kubectl get nodes
   ```
 
 * **Comandos Básicos:**
