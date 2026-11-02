@@ -61,7 +61,7 @@ EOF
 }
 
 # Criando as 3 VMs (Nome, RAM, vCPU, IP)
-criar_vm "k3s-master" 1536 2 "192.168.121.50"
+criar_vm "k3s-master" 2048 2 "192.168.121.50"
 criar_vm "k3s-worker1" 1024 1 "192.168.121.51"
 criar_vm "k3s-worker2" 1024 1 "192.168.121.52"
 
