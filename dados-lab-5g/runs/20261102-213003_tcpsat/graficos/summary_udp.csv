@@ -1,0 +1,2 @@
+fase,papel,oferecido_mbps,enviado_mbps,recebido_mbps,perda_pct,pacotes_perdidos,bytes_perdidos_est,pacotes_enviados,pacotes_recebidos,jitter_medio_ms,jitter_p95_ms,jitter_max_ms,seg_sem_trafego,fora_de_ordem,teste_ok,fonte,upf_rx_pkts,upf_tx_pkts,upf_rx_drop,upf_cpu_cores
+udp_agressor,aggressor,115.2,113.5,95.96,13.838,109207,131048400,803995,679965,0.132,0.186,0.73,2,n/d,0,log do servidor (canal de controle caiu),745816,24371,0,0.72

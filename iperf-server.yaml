@@ -1,0 +1,13 @@
+# iperf-server.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: iperf-server
+spec:
+  nodeName: k3s-worker1      # ajuste para o nome real do node
+  containers:
+  - name: iperf3
+    image: networkstatic/iperf3:latest
+    args: ["-s"]
+    ports:
+    - containerPort: 5201

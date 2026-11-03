@@ -1,0 +1,3 @@
+fase,papel,fluxos,vazao_media_mbps,vazao_min_mbps,retransmissoes_total,retrans_por_s_media,retrans_por_s_max,rtt_medio_ms,rtt_p95_ms,rtt_max_ms,cwnd_min_kb,quedas_de_cwnd,seg_sem_trafego,teste_ok,upf_rx_pkts,upf_tx_pkts,upf_rx_drop,upf_cpu_cores
+tcp_P1,main,1,92.22,67.3,576,19.2,36,5.71,7.62,8.95,46.1,0,0,1,249223,50939,0,0.88
+tcp_P4,main,4,84.99,65.15,4708,156.93,231,9.82,15.89,22.14,9.2,7,0,1,231877,60960,0,0.91
