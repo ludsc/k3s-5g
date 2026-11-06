@@ -58,11 +58,13 @@ EOF
       --cloud-init user-data=user-data-$NOME.yaml,network-config=network-$NOME.yaml \
       --import \
       --noautoconsole
+      --vcpus $VCPU \
+      --cpu host-passthrough \
 }
 
 # Criando as 3 VMs (Nome, RAM, vCPU, IP)
-criar_vm "k3s-master" 2048 2 "192.168.121.50"
-criar_vm "k3s-worker1" 1024 1 "192.168.121.51"
-criar_vm "k3s-worker2" 1024 1 "192.168.121.52"
+criar_vm "k3s-master"  1536 2 "192.168.121.50"
+criar_vm "k3s-worker1" 1536 2 "192.168.121.51"
+criar_vm "k3s-worker2" 1536 2 "192.168.121.52"
 
 echo "Todas as VMs foram iniciadas! Aguarde uns 2 minutos para o cloud-init finalizar as instalações."

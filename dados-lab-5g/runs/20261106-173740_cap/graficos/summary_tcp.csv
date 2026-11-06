@@ -1,0 +1,3 @@
+fase,papel,fluxos,vazao_media_mbps,vazao_min_mbps,retransmissoes_total,retrans_por_s_media,retrans_por_s_max,rtt_medio_ms,rtt_p95_ms,rtt_max_ms,cwnd_min_kb,quedas_de_cwnd,seg_sem_trafego,teste_ok,valida,motivo,pacotes_sonda_fase,upf_rx_pkts,upf_tx_pkts,upf_rx_drop,upf_cpu_cores,upf_throttled_pct,ue_cpu_media,ue_cpu_pico,gnb_cpu_media,gnb_cpu_pico,upf_cpu_pico,ran_no_limite
+tcp_P1,main,1,62.73,25.88,403,13.43,32,8.15,19.21,46.82,71.1,0,0,1,True,,0,170681,35860,0,0.29,50.5,0.35,0.44,0.4,0.49,0.31,não
+tcp_P4,main,4,53.11,38.82,1502,50.07,122,17.3,36.77,52.41,9.2,1,0,1,True,,0,146238,39609,0,0.29,53.2,0.38,0.46,0.41,0.5,0.31,não

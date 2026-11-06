@@ -1,0 +1,8 @@
+fase,papel,oferecido_mbps,enviado_mbps,recebido_mbps,perda_pct,pacotes_perdidos,bytes_perdidos_est,pacotes_enviados,pacotes_recebidos,jitter_medio_ms,jitter_p95_ms,jitter_max_ms,seg_sem_trafego,fora_de_ordem,fora_de_ordem_pct,teste_ok,valida,motivo,fonte,pacotes_sonda_fase,upf_rx_pkts,upf_tx_pkts,upf_rx_drop,upf_cpu_cores,upf_throttled_pct,ue_cpu_media,ue_cpu_pico,gnb_cpu_media,gnb_cpu_pico,upf_cpu_pico,ran_no_limite
+p01_udp_25pct,main,15.1,15.1,15.1,0.0,0,0,47187,47187,0.131,0.617,0.773,0,0,0.0,1,True,,iperf3 (texto do servidor),6872,53026,9,0,0.08,0.0,0.14,0.2,0.11,0.17,0.1,não
+p02_udp_50pct,main,30.2,30.19,30.18,0.0,0,0,94358,94356,0.105,0.354,0.454,0,0,0.0,1,True,,iperf3 (texto do servidor),6873,100040,9,0,0.16,0.1,0.28,0.55,0.21,0.39,0.26,não
+p03_udp_75pct,main,45.3,45.3,38.22,15.611,22096,26515200,141559,119449,0.185,0.308,0.831,0,0,0.0,1,True,,iperf3 (texto do servidor),6901,120991,0,0,0.3,31.6,0.61,0.74,0.47,0.54,0.31,não
+p04_udp_90pct,main,54.4,54.4,38.06,30.005,50994,61192800,169997,118958,0.148,0.264,0.327,0,0,0.0,1,True,,iperf3 (texto do servidor),6906,122886,9,0,0.3,42.9,0.67,0.88,0.56,0.68,0.31,não
+p05_udp_100pct,main,60.4,60.4,38.64,35.971,67835,81402000,188746,120747,0.139,0.276,0.503,0,0,0.0,1,True,,iperf3 (texto do servidor),6945,123289,10,0,0.29,46.3,0.72,1.0,0.62,0.69,0.31,SIM
+p06_udp_105pct,main,63.4,63.4,39.88,37.086,73457,88148400,198120,124617,0.153,0.215,0.532,0,0,0.0,1,True,,iperf3 (texto do servidor),0,124576,9,0,0.3,49.1,0.71,0.94,0.63,0.71,0.31,SIM
+probe_udp,probe,2.0,2.0,1.76,12.224,5068,6081600,41459,36390,2.304,6.604,13.865,0,0,0.0,1,True,,iperf3 (texto do servidor),,,,,,,,,,,,

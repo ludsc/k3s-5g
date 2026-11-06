@@ -1,0 +1,4 @@
+name,kind,role,rate_mbps,parallel,dur_s,t_start,t_end,rc,ok,json,server_log,valida,motivo
+tcp_sozinho,tcp,main,,4,60,1794001512.189,1794001572.459,0,1,raw/tcp_sozinho.json,raw/tcp_sozinho.server.log,1,
+udp_agressor,udp,aggressor,45.3,1,68,1794001584.169,1794001652.642,0,1,raw/udp_agressor.json,raw/udp_agressor.server.log,1,
+tcp_com_agressor,tcp,main,,4,60,1794001587.370,1794001647.722,0,1,raw/tcp_com_agressor.json,raw/tcp_com_agressor.server.log,1,

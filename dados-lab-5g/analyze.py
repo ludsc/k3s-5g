@@ -261,6 +261,26 @@ def cores_in(rows, idx, a, b):
     return out
 
 
+# ------------------------------------------------------------------ sonda (2º UE) dentro dos contadores da UPF
+def sonda_pacotes(rd, phases):
+    """(início, pacotes enviados por segundo) da sonda, para descontar dos contadores da UPF."""
+    for p in phases:
+        if p["role"] == "probe":
+            d = load_json(rd / p["json"]) or {}
+            return p["t_start"], [i["sum"].get("packets", 0) for i in d.get("intervals") or []]
+    return None, []
+
+
+def sonda_na_janela(t0p, pk, a, b):
+    if t0p is None:
+        return 0
+    tot = 0.0
+    for i, n in enumerate(pk):
+        s0 = t0p + i
+        tot += n * max(0.0, min(b, s0 + 1) - max(a, s0))
+    return int(round(tot))
+
+
 # ------------------------------------------------------------------ CPU de UE e gNB
 RAN_LIMITE = 0.9      # núcleos: acima disso o emulador de RAN (UERANSIM) está perto do teto de 1 thread
 
@@ -489,13 +509,18 @@ def analyze(rd):
 
     udp = [udp_phase(p, rd, payload) for p in phases if p["kind"] == "udp"]
     tcp = [tcp_phase(p, rd) for p in phases if p["kind"] == "tcp"]
+    t0p, pkp = sonda_pacotes(rd, phases)
     for u in udp:                       # contadores e CPU (UPF, UE, gNB) em cada fase UDP
         p = u["p"]
+        if p["role"] == "probe":        # a sonda dura a execução inteira: contadores por fase não se aplicam
+            continue
+        u["s"]["pacotes_sonda_fase"] = sonda_na_janela(t0p, pkp, p["t_start"] - 1.2, p["t_end"] + 1.5)
         if pods:
             u["s"].update(upf_delta(pods, p["t_start"] + 0.5, p["t_end"]))
         u["s"].update(cpu_extra(pods, comp, p["t_start"] + 0.5, p["t_end"]))
     for t in tcp:
         p = t["p"]
+        t["s"]["pacotes_sonda_fase"] = sonda_na_janela(t0p, pkp, p["t_start"] - 1.2, p["t_end"] + 1.5)
         if pods:
             t["s"].update(upf_delta(pods, p["t_start"], p["t_end"]))
         t["s"].update(cpu_extra(pods, comp, p["t_start"], p["t_end"]))
@@ -516,7 +541,9 @@ def analyze(rd):
         table(su, ["fase", "papel", "oferecido_mbps", "recebido_mbps", "perda_pct", "pacotes_perdidos",
                    "jitter_medio_ms", "jitter_p95_ms", "seg_sem_trafego", "fora_de_ordem", "teste_ok", "valida"])
         print("\nContadores da UPF (soma dos pods) e fonte dos dados:")
-        table(su, ["fase", "pacotes_enviados", "upf_rx_pkts", "pacotes_recebidos", "upf_rx_drop", "upf_cpu_cores", "fonte"])
+        table(su, ["fase", "pacotes_enviados", "pacotes_sonda_fase", "upf_rx_pkts", "pacotes_recebidos",
+                   "upf_rx_drop", "upf_cpu_cores", "fonte"])
+        print("   upf_rx_pkts conta também os pacotes da sonda (pacotes_sonda_fase): compare com enviados + sonda.")
     if comp or pods:
         print("\n=== CPU por componente (núcleos) — quem satura primeiro? ===")
         table(su + st, ["fase", "valida", "ue_cpu_pico", "gnb_cpu_pico", "upf_cpu_pico", "upf_cpu_cores",

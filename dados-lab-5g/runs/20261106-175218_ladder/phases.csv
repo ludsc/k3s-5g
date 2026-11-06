@@ -1,0 +1,8 @@
+name,kind,role,rate_mbps,parallel,dur_s,t_start,t_end,rc,ok,json,server_log,valida,motivo
+p01_udp_25pct,udp,main,15.7,1,30,1793998345.405,1793998375.684,0,1,raw/p01_udp_25pct.json,raw/p01_udp_25pct.server.log,1,
+p02_udp_50pct,udp,main,31.4,1,30,1793998384.481,1793998414.804,0,1,raw/p02_udp_50pct.json,raw/p02_udp_50pct.server.log,1,
+p03_udp_75pct,udp,main,47.0,1,30,1793998423.508,1793998453.819,0,1,raw/p03_udp_75pct.json,raw/p03_udp_75pct.server.log,1,
+p04_udp_90pct,udp,main,56.4,1,30,1793998463.223,1793998493.690,0,1,raw/p04_udp_90pct.json,raw/p04_udp_90pct.server.log,1,
+p05_udp_100pct,udp,main,62.7,1,30,1793998503.085,1793998533.573,0,1,raw/p05_udp_100pct.json,raw/p05_udp_100pct.server.log,1,
+p06_udp_105pct,udp,main,65.8,1,30,1793998542.865,1793998603.217,124,0,raw/p06_udp_105pct.json,raw/p06_udp_105pct.server.log,0,ping falhou logo APÓS a fase (UE perdeu o sinal durante ou depois)
+probe_udp,udp,probe,2.0,1,199,1793998343.047,1793998625.867,0,1,raw/probe_udp.json,raw/probe_udp.server.log,0,sonda interrompida pela queda de sinal do UE

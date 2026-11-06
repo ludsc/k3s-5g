@@ -1,7 +1,0 @@
-fase,papel,oferecido_mbps,enviado_mbps,recebido_mbps,perda_pct,pacotes_perdidos,bytes_perdidos_est,pacotes_enviados,pacotes_recebidos,jitter_medio_ms,jitter_p95_ms,jitter_max_ms,seg_sem_trafego,fora_de_ordem,fora_de_ordem_pct,teste_ok,valida,motivo,fonte,upf_rx_pkts,upf_tx_pkts,upf_rx_drop,upf_cpu_cores,upf_throttled_pct,ue_cpu_media,ue_cpu_pico,gnb_cpu_media,gnb_cpu_pico,upf_cpu_pico,ran_no_limite
-p01_udp_25pct,main,20.0,20.0,20.0,0.0,0,0,62499,62499,0.05,0.225,0.398,0,0,0.0,1,True,,iperf3 (texto do servidor),68162,9,0,0.43,0.0,0.03,0.11,0.09,0.11,0.98,não
-p02_udp_50pct,main,40.0,40.0,39.97,0.078,97,116400,124997,124900,0.041,0.162,0.19,0,0,0.0,1,True,,iperf3 (texto do servidor),130815,9,0,0.26,0.0,0.06,0.17,0.16,0.2,0.86,não
-p03_udp_75pct,main,60.0,60.0,55.45,7.583,14218,17061600,187495,173274,0.082,0.215,0.43,0,0,0.0,1,True,,iperf3 (texto do servidor),179115,9,0,0.42,0.0,0.51,1.0,0.33,0.61,1.23,SIM
-p04_udp_100pct,main,80.0,80.0,39.58,50.521,126283,151539600,249994,123677,0.253,0.483,0.567,0,0,0.0,1,True,,iperf3 (texto do servidor),128210,11,0,0.89,0.0,0.95,1.0,0.72,0.83,1.39,SIM
-p05_udp_125pct,main,100.0,96.66,2.53,62.004,12947,15536400,302079,7934,0.355,0.41,0.417,27,n/d,n/d,0,False,ping falhou logo APÓS a fase (UE perdeu o sinal durante ou depois),log do servidor (canal de controle caiu),16589,30,0,0.44,0.0,0.69,1.0,0.06,0.82,1.12,SIM
-probe_udp,probe,2.0,2.0,1.83,8.818,3656,4387200,41459,37803,2.084,9.844,12.354,0,0,0.0,1,True,,iperf3 (texto do servidor),533989,157,0,0.45,0.0,0.4,1.0,0.19,0.83,1.39,SIM

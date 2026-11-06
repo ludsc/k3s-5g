@@ -1,0 +1,4 @@
+ts,event,detail
+1793967926.562,pod_present,open5gs-upf-65697988d4-crtdh
+1793967926.562,ue_pod_present,ueransim-gnb-ues-ff594cb8b-tth5z
+1793967926.563,gnb_pod_present,ueransim-gnb-84b5886896-cjbjr

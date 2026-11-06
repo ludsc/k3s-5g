@@ -1,0 +1,39 @@
+Accepted connection from 10.42.2.54, port 50277
+[  6] local 10.42.1.15 port 5301 connected to 10.42.2.54 port 59789
+[ ID] Interval           Transfer     Bitrate         Jitter    Lost/Total Datagrams
+[  6]   0.00-1.00   sec  4.27 MBytes  35.8 Mbits/sec  0.137 ms  0/3731 (0%)  
+[  6]   1.00-2.00   sec  4.28 MBytes  35.9 Mbits/sec  0.275 ms  0/3742 (0%)  
+[  6]   2.00-3.00   sec  4.28 MBytes  35.9 Mbits/sec  0.034 ms  4/3743 (0.11%)  
+[  6]   3.00-4.00   sec  4.28 MBytes  35.9 Mbits/sec  0.055 ms  0/3739 (0%)  
+[  6]   4.00-5.00   sec  4.07 MBytes  34.2 Mbits/sec  0.051 ms  173/3733 (4.6%)  
+[  6]   5.00-6.00   sec  4.06 MBytes  34.1 Mbits/sec  0.016 ms  196/3747 (5.2%)  
+[  6]   6.00-7.00   sec  4.24 MBytes  35.6 Mbits/sec  0.036 ms  35/3739 (0.94%)  
+[  6]   7.00-8.00   sec  3.91 MBytes  32.8 Mbits/sec  0.031 ms  321/3740 (8.6%)  
+[  6]   8.00-9.00   sec  3.83 MBytes  32.1 Mbits/sec  0.036 ms  395/3739 (11%)  
+[  6]   9.00-10.00  sec  4.14 MBytes  34.8 Mbits/sec  0.021 ms  124/3740 (3.3%)  
+[  6]  10.00-11.00  sec  4.28 MBytes  35.9 Mbits/sec  0.020 ms  0/3740 (0%)  
+[  6]  11.00-12.00  sec  4.27 MBytes  35.8 Mbits/sec  0.037 ms  8/3739 (0.21%)  
+[  6]  12.00-13.00  sec  4.28 MBytes  35.9 Mbits/sec  0.021 ms  0/3740 (0%)  
+[  6]  13.00-14.00  sec  4.28 MBytes  35.9 Mbits/sec  0.032 ms  0/3739 (0%)  
+[  6]  14.00-15.00  sec  4.16 MBytes  34.9 Mbits/sec  0.023 ms  108/3740 (2.9%)  
+[  6]  15.00-16.00  sec  4.15 MBytes  34.8 Mbits/sec  0.017 ms  42/3668 (1.1%)  
+[  6]  16.00-17.00  sec  4.23 MBytes  35.5 Mbits/sec  0.022 ms  116/3811 (3%)  
+[  6]  17.00-18.00  sec  4.28 MBytes  35.9 Mbits/sec  0.027 ms  0/3740 (0%)  
+[  6]  18.00-19.00  sec  4.10 MBytes  34.4 Mbits/sec  0.029 ms  159/3739 (4.3%)  
+[  6]  19.00-20.00  sec  4.02 MBytes  33.7 Mbits/sec  0.044 ms  226/3740 (6%)  
+[  6]  20.00-21.00  sec  4.11 MBytes  34.5 Mbits/sec  0.044 ms  145/3739 (3.9%)  
+[  6]  21.00-22.00  sec  4.20 MBytes  35.2 Mbits/sec  0.041 ms  72/3740 (1.9%)  
+[  6]  22.00-23.00  sec  4.28 MBytes  35.9 Mbits/sec  0.027 ms  0/3740 (0%)  
+[  6]  23.00-24.00  sec  4.28 MBytes  35.9 Mbits/sec  0.048 ms  0/3739 (0%)  
+[  6]  24.00-25.00  sec  4.11 MBytes  34.4 Mbits/sec  0.044 ms  149/3737 (4%)  
+[  6]  25.00-26.00  sec  4.05 MBytes  34.0 Mbits/sec  0.020 ms  207/3742 (5.5%)  
+[  6]  26.00-27.00  sec  4.27 MBytes  35.9 Mbits/sec  0.038 ms  5/3740 (0.13%)  
+[  6]  27.00-28.00  sec  3.99 MBytes  33.5 Mbits/sec  0.098 ms  254/3740 (6.8%)  
+[  6]  28.00-29.00  sec  4.16 MBytes  34.9 Mbits/sec  0.053 ms  102/3739 (2.7%)  
+[  6]  29.00-30.00  sec  3.69 MBytes  30.9 Mbits/sec  0.038 ms  518/3740 (14%)  
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Jitter    Lost/Total Datagrams
+[  6]   0.00-30.00  sec   125 MBytes  34.8 Mbits/sec  0.038 ms  3359/112185 (3%)  receiver
+-----------------------------------------------------------
+Server listening on 5301 (test #52)
+-----------------------------------------------------------

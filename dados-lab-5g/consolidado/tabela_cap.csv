@@ -1,0 +1,3 @@
+teste,vazao_mbps_media,vazao_mbps_desvio,vazao_mbps_ic95,vazao_mbps_n,retrans_pct_media,retrans_pct_desvio,retrans_pct_ic95,retrans_pct_n,rtt_medio_ms_media,rtt_medio_ms_desvio,rtt_medio_ms_ic95,rtt_medio_ms_n
+tcp_P1,76.858,38.273,47.515,5,0.212,0.017,0.021,5,12.78,9.493,11.785,5
+tcp_P4,69.322,34.598,42.953,5,1.178,0.137,0.17,5,15.844,3.802,4.72,5

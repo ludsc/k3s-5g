@@ -18,13 +18,20 @@ Encerre com SIGTERM/Ctrl+C.
 import argparse, csv, json, re, signal, subprocess, threading, time
 from pathlib import Path
 
-# Define cpu (usec acumulados), thr (usec estrangulados) e nthr (nº de períodos estrangulados)
+# Define cpu (usec acumulados), thr (usec estrangulados), nthr (nº de períodos estrangulados) e cmax (cpu.max).
+# IMPORTANTE: em pods com cgroup do host, /sys/fs/cgroup é a RAIZ do nó (mede a VM inteira). O cgroup do
+# container é /sys/fs/cgroup + o caminho de /proc/self/cgroup, e é ele que este trecho lê.
 CPU_SH = r"""
-cpu=0; thr=0; nthr=0
-if [ -r /sys/fs/cgroup/cpu.stat ]; then
+cpu=0; thr=0; nthr=0; cmax=
+read -r cgl < /proc/self/cgroup 2>/dev/null
+cg=${cgl#*::}
+D=/sys/fs/cgroup$cg
+[ -r $D/cpu.stat ] || D=/sys/fs/cgroup
+if [ -r $D/cpu.stat ]; then
   while read k v; do
     case $k in usage_usec) cpu=$v;; throttled_usec) thr=$v;; nr_throttled) nthr=$v;; esac
-  done < /sys/fs/cgroup/cpu.stat
+  done < $D/cpu.stat
+  [ -r $D/cpu.max ] && read -r cmax < $D/cpu.max
 else
   if [ -r /sys/fs/cgroup/cpuacct/cpuacct.usage ]; then read n < /sys/fs/cgroup/cpuacct/cpuacct.usage; cpu=$((n/1000)); fi
   if [ -r /sys/fs/cgroup/cpu/cpu.stat ]; then

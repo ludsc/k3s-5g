@@ -1,0 +1,8 @@
+name,kind,role,rate_mbps,parallel,dur_s,t_start,t_end,rc,ok,json,server_log,valida,motivo
+p01_udp_25pct,udp,main,15.7,1,30,1794000253.364,1794000283.632,0,1,raw/p01_udp_25pct.json,raw/p01_udp_25pct.server.log,1,
+p02_udp_50pct,udp,main,31.4,1,30,1794000292.402,1794000322.694,0,1,raw/p02_udp_50pct.json,raw/p02_udp_50pct.server.log,1,
+p03_udp_75pct,udp,main,47.0,1,30,1794000331.396,1794000361.756,0,1,raw/p03_udp_75pct.json,raw/p03_udp_75pct.server.log,1,
+p04_udp_90pct,udp,main,56.4,1,30,1794000371.040,1794000401.499,0,1,raw/p04_udp_90pct.json,raw/p04_udp_90pct.server.log,1,
+p05_udp_100pct,udp,main,62.7,1,30,1794000410.770,1794000441.454,0,1,raw/p05_udp_100pct.json,raw/p05_udp_100pct.server.log,1,
+p06_udp_105pct,udp,main,65.8,1,30,1794000450.697,1794000481.360,0,1,raw/p06_udp_105pct.json,raw/p06_udp_105pct.server.log,1,
+probe_udp,udp,probe,2.0,1,199,1794000251.022,1794000484.972,0,1,raw/probe_udp.json,raw/probe_udp.server.log,1,

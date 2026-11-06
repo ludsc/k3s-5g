@@ -1,0 +1,39 @@
+Accepted connection from 10.42.1.82, port 43749
+[  6] local 10.42.1.54 port 5301 connected to 10.42.1.82 port 45225
+[ ID] Interval           Transfer     Bitrate
+[  6]   0.00-1.00   sec  8.75 MBytes  73.4 Mbits/sec                  
+[  6]   1.00-2.00   sec  9.38 MBytes  78.6 Mbits/sec                  
+[  6]   2.00-3.00   sec  8.62 MBytes  72.3 Mbits/sec                  
+[  6]   3.00-4.00   sec  8.50 MBytes  71.3 Mbits/sec                  
+[  6]   4.00-5.00   sec  8.12 MBytes  68.2 Mbits/sec                  
+[  6]   5.00-6.00   sec  7.75 MBytes  65.0 Mbits/sec                  
+[  6]   6.00-7.00   sec  9.62 MBytes  80.7 Mbits/sec                  
+[  6]   7.00-8.00   sec  9.88 MBytes  82.9 Mbits/sec                  
+[  6]   8.00-9.00   sec  9.88 MBytes  82.8 Mbits/sec                  
+[  6]   9.00-10.00  sec  9.88 MBytes  82.8 Mbits/sec                  
+[  6]  10.00-11.00  sec  9.38 MBytes  78.6 Mbits/sec                  
+[  6]  11.00-12.00  sec  9.75 MBytes  81.7 Mbits/sec                  
+[  6]  12.00-13.00  sec  7.62 MBytes  64.1 Mbits/sec                  
+[  6]  13.00-14.00  sec  5.50 MBytes  46.1 Mbits/sec                  
+[  6]  14.00-15.00  sec  5.50 MBytes  46.1 Mbits/sec                  
+[  6]  15.00-16.00  sec  6.62 MBytes  55.6 Mbits/sec                  
+[  6]  16.00-17.00  sec  5.50 MBytes  46.1 Mbits/sec                  
+[  6]  17.00-18.00  sec  8.25 MBytes  69.2 Mbits/sec                  
+[  6]  18.00-19.00  sec  8.50 MBytes  71.3 Mbits/sec                  
+[  6]  19.00-20.00  sec  9.12 MBytes  76.5 Mbits/sec                  
+[  6]  20.00-21.00  sec  9.50 MBytes  79.7 Mbits/sec                  
+[  6]  21.00-22.00  sec  9.38 MBytes  78.6 Mbits/sec                  
+[  6]  22.00-23.00  sec  8.38 MBytes  70.2 Mbits/sec                  
+[  6]  23.00-24.00  sec  7.75 MBytes  65.0 Mbits/sec                  
+[  6]  24.00-25.00  sec  7.38 MBytes  61.8 Mbits/sec                  
+[  6]  25.00-26.00  sec  8.50 MBytes  71.4 Mbits/sec                  
+[  6]  26.00-27.00  sec  8.88 MBytes  74.4 Mbits/sec                  
+[  6]  27.00-28.00  sec  9.00 MBytes  75.5 Mbits/sec                  
+[  6]  28.00-29.00  sec  8.38 MBytes  70.2 Mbits/sec                  
+[  6]  29.00-30.00  sec  8.62 MBytes  72.4 Mbits/sec                  
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate
+[  6]   0.00-30.01  sec   252 MBytes  70.4 Mbits/sec                  receiver
+-----------------------------------------------------------
+Server listening on 5301 (test #11)
+-----------------------------------------------------------

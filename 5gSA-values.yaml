@@ -18,10 +18,10 @@ sgwc:
 sgwu:
   enabled: false
 
-upf:
-  resources:
-    requests: {cpu: 300m}
-    limits: {cpu: 300m}
+#upf :  caso precise ajustar algo na upf 
+#  resources:
+#    requests: {cpu: 300m}
+#    limits: {cpu: 300m}
 
 amf:
   config:

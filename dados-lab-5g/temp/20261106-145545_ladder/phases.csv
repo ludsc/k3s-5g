@@ -1,0 +1,5 @@
+name,kind,role,rate_mbps,parallel,dur_s,t_start,t_end,rc,ok,json,server_log,valida,motivo
+p01_udp_25pct,udp,main,35.4,1,30,1793987752.397,1793987782.842,0,1,raw/p01_udp_25pct.json,raw/p01_udp_25pct.server.log,1,
+p02_udp_50pct,udp,main,70.8,1,30,1793987792.118,1793987822.591,0,1,raw/p02_udp_50pct.json,raw/p02_udp_50pct.server.log,1,
+p03_udp_75pct,udp,main,106.1,1,30,1793987831.825,1793987862.503,0,1,raw/p03_udp_75pct.json,raw/p03_udp_75pct.server.log,1,
+p04_udp_100pct,udp,main,141.5,1,30,1793987871.817,1793987932.153,124,0,raw/p04_udp_100pct.json,raw/p04_udp_100pct.server.log,0,ping falhou logo APÓS a fase (UE perdeu o sinal durante ou depois)

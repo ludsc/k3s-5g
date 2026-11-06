@@ -4,7 +4,7 @@ kind: Pod
 metadata:
   name: iperf-server
 spec:
-  nodeName: k3s-worker1      # ajuste para o nome real do node
+  nodeName: k3s-master      # ajuste para o nome real do node
   containers:
   - name: iperf3
     image: networkstatic/iperf3:latest

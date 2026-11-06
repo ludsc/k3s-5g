@@ -1,3 +1,0 @@
-name,kind,role,rate_mbps,parallel,dur_s,t_start,t_end,rc,ok,json,server_log,valida,motivo
-tcp_P1,tcp,main,,1,30,1793938588.002,1793938618.268,0,1,raw/tcp_P1.json,raw/tcp_P1.server.log,1,
-tcp_P4,tcp,main,,4,30,1793938626.916,1793938657.224,0,1,raw/tcp_P4.json,raw/tcp_P4.server.log,1,

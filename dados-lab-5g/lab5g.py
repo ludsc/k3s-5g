@@ -3,9 +3,12 @@
 
   python3 lab5g.py preflight        valida o ambiente (rode primeiro)
   python3 lab5g.py cap              1) mede a capacidade C do caminho (TCP)
-  python3 lab5g.py ladder           2) escada UDP em % de C  -> perda, jitter, fora de ordem
-  python3 lab5g.py tcpsat           3) TCP sozinho x TCP com agressor UDP saturando o túnel
-  python3 lab5g.py scale            4) carga longa (50% -> 150% de C) para observar HPA/UPFs
+  python3 lab5g.py ladder           2) escada UDP em % de C (padrão 25..105%) -> perda, jitter, fora de ordem
+  python3 lab5g.py tcpsat           3) TCP sozinho x TCP com agressor UDP (75% de C; o TCP guloso completa o resto)
+  python3 lab5g.py scale            4) carga longa (50% -> 100% de C) para observar HPA/UPFs
+
+Teto de carga: acima de ~110% de C o emulador de RAN (UERANSIM) satura e o UE perde o sinal. Por isso o
+script recusa fases acima de --max-pct (padrão 110); use --allow-high só se souber o que está fazendo.
   python3 lab5g.py plot [pasta]     refaz os gráficos de uma execução
 
 Configuração: variáveis de ambiente ou arquivo lab.env (veja lab.env.example).
@@ -273,6 +276,13 @@ def parse_phases(spec, default_sec):
     return out
 
 
+def checar_teto(a, valores, nome):
+    acima = [v for v in valores if v > a.max_pct]
+    if acima and not a.allow_high:
+        die(f"{nome} {acima} passa do teto de {a.max_pct:g}% de C (o UE tende a perder o sinal acima disso). "
+            f"Ajuste, aumente --max-pct ou use --allow-high.")
+
+
 def finish(ctx):
     ctx.stop_sampler()
     if not ctx.a.no_plot and ctx.rundir:
@@ -314,6 +324,7 @@ def sc_phases(ctx, scen, spec):
     a = ctx.a
     C = ctx.capacity()
     phases = parse_phases(spec, a.phase_dur)
+    checar_teto(a, [pct for pct, _ in phases], "fases")
     total = sum(s for _, s in phases) + a.gap * (len(phases) - 1)
     print(f">> C = {C:.1f} Mbps | fases (% de C : s): {phases}")
     ctx.new_run(scen); ctx.start_sampler()
@@ -339,6 +350,8 @@ def sc_phases(ctx, scen, spec):
             if aborted:
                 run(ctx.ue(["pkill", "iperf3"]))   # encerra a sonda que ainda estaria rodando
             probe.wait()
+            if aborted:
+                probe.valid, probe.reason = False, "sonda interrompida pela queda de sinal do UE"
             ctx.finalize([probe], check=False)
     finally:
         finish(ctx)
@@ -347,6 +360,7 @@ def sc_phases(ctx, scen, spec):
 def sc_tcpsat(ctx):
     a = ctx.a
     C = ctx.capacity()
+    checar_teto(a, [a.agg_pct], "agressor")
     agg_rate = round(C * a.agg_pct / 100.0, 1)
     ctx.new_run("tcpsat"); ctx.start_sampler()
     try:
@@ -418,10 +432,12 @@ def cmd_preflight(ctx):
         chk(f"contadores de {a.upf_iface} em {p}", r.stdout.strip().isdigit(), r.stdout.strip() or r.stderr.strip()[:80])
     for p in pods:
         cmd = ["kubectl", "-n", a.upf_ns, "exec", p] + (["-c", a.upf_container] if a.upf_container else [])
-        r = run(cmd + ["--", "sh", "-c", CPU_SH + 'echo "$cpu $thr $nthr"'])
-        v = r.stdout.split()
-        chk(f"CPU/throttling (cgroup) de {p}", len(v) == 3 and v[0].isdigit() and v[0] != "0",
-            f"cpu_usec={v[0] if v else '?'} nr_throttled={v[2] if len(v) == 3 else '?'}")
+        r = run(cmd + ["--", "sh", "-c", CPU_SH + 'echo "$cpu $thr $nthr"; echo "cpu.max=$cmax"'])
+        ls = r.stdout.splitlines()
+        v = ls[0].split() if ls else []
+        cmax = ls[1].replace("cpu.max=", "") if len(ls) > 1 else "?"
+        chk(f"CPU/throttling do CONTAINER de {p}", len(v) == 3 and v[0].isdigit() and v[0] != "0",
+            f"cpu_usec={v[0] if v else '?'} nr_throttled={v[2] if len(v) == 3 else '?'} cpu.max='{cmax}'")
     r = run(["kubectl", "-n", a.ns, "get", "pods", "-o", "name"])
     nomes = [x.split("/")[-1] for x in r.stdout.split()]
     for papel, rgx in (("UE", a.ue_regex), ("gNB", a.gnb_regex)):
@@ -429,8 +445,8 @@ def cmd_preflight(ctx):
         chk(f"pods do {papel} (regex '{rgx}')", len(achados) >= 1, ", ".join(achados))
         for n in achados:
             r = run(["kubectl", "-n", a.ns, "exec", n, "--", "sh", "-c", CPU_SH + 'echo "$cpu $thr $nthr"'])
-            v = r.stdout.split()
-            chk(f"CPU (cgroup) de {n}", len(v) == 3 and v[0].isdigit() and v[0] != "0", f"cpu_usec={v[0] if v else '?'}")
+            v = (r.stdout.splitlines() or [""])[0].split()
+            chk(f"CPU do CONTAINER de {n}", len(v) == 3 and v[0].isdigit() and v[0] != "0", f"cpu_usec={v[0] if v else '?'}")
     r = run(["kubectl", "-n", a.upf_ns, "get", "hpa"])
     print(f"[INFO] HPA no ns {a.upf_ns}: {r.stdout.strip() or r.stderr.strip() or 'nenhum'}")
     print("\n>> " + ("Tudo certo. Próximo: python3 lab5g.py cap" if not bad else f"Corrija: {', '.join(bad)}"))
@@ -450,13 +466,15 @@ def main():
          ("--upf-iface", env("UPF_IFACE", "ogstun")), ("--upf-container", env("UPF_CONTAINER")),
          ("--ue-regex", env("UE_REGEX")), ("--gnb-regex", env("GNB_REGEX")),
          ("--out", env("OUT", "runs")), ("--cap-mbps", env("CAP_MBPS")),
-         ("--phases", env("PHASES", "25,50,75,100,125,150"))]
+         ("--phases", env("PHASES", "25,50,75,90,100,105"))]
     for k, v in D:
         ap.add_argument(k, default=v)
     for k, v in [("--payload", "1200"), ("--cap-dur", "30"), ("--phase-dur", "30"), ("--gap", "3"),
                  ("--tcp-dur", "60"), ("--tcp-streams", "4")]:
         ap.add_argument(k, type=int, default=int(env(k[2:].replace("-", "_").upper(), v)))
-    ap.add_argument("--agg-pct", type=float, default=float(env("AGG_PCT", "125")))
+    ap.add_argument("--agg-pct", type=float, default=float(env("AGG_PCT", "75")))
+    ap.add_argument("--max-pct", type=float, default=float(env("MAX_PCT", "110")))
+    ap.add_argument("--allow-high", action="store_true")
     ap.add_argument("--probe-mbps", type=float, default=float(env("PROBE_MBPS", "2")))
     ap.add_argument("--no-plot", action="store_true")
     a = ap.parse_args()
@@ -482,7 +500,7 @@ def main():
         elif a.cmd == "ladder":
             sc_phases(ctx, "ladder", a.phases)
         elif a.cmd == "scale":
-            sc_phases(ctx, "scale", env("SCALE_PHASES", "50:30,150:180"))
+            sc_phases(ctx, "scale", env("SCALE_PHASES", "50:30,100:120"))
         elif a.cmd == "tcpsat":
             sc_tcpsat(ctx)
     except KeyboardInterrupt:
