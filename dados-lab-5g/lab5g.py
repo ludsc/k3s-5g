@@ -16,9 +16,11 @@ from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from upf_sampler import CPU_SH   # trecho de shell que lê CPU/throttling do cgroup
 PORT_MAIN, PORT_AGG, PORT_PROBE = 5301, 5302, 5303
 PHASE_FIELDS = ["name", "kind", "role", "rate_mbps", "parallel", "dur_s", "t_start", "t_end",
-                "rc", "ok", "json", "server_log"]
+                "rc", "ok", "json", "server_log", "valida", "motivo"]
 
 
 def env(k, d=""):
@@ -121,6 +123,42 @@ class Ctx:
         run(self.ue(["pkill", "iperf3"]))
         time.sleep(8)
 
+    # ---- verificação do link UE <-> gNB <-> UPF (o UE pode "perder o sinal" sob carga) ----
+    def link_ok(self, tries=2):
+        a = self.a
+        for i in range(tries):
+            r = run(self.ue(["ping", "-c", "3", "-W", "2", "-I", a.ue_if, a.dn_ip]), timeout=40)
+            if r.returncode == 0:
+                return True
+            time.sleep(2)
+        return False
+
+    def gate(self, flows):
+        """Ping ANTES da fase (túnel ocioso). Se falhar, registra as fases como inválidas e retorna False."""
+        flows = flows if isinstance(flows, list) else [flows]
+        if self.link_ok():
+            return True
+        for f in flows:
+            f.skip("ping pelo túnel falhou ANTES da fase (UE sem sinal?): fase não executada")
+        print("!! O UE perdeu o sinal. Reinicie o gNB e depois o UE e repita; os dados coletados até aqui foram salvos.")
+        return False
+
+    def finalize(self, flows, check=True):
+        """Ping DEPOIS da fase. Se falhar, a(s) fase(s) ficam inválidas (o link caiu durante ou logo após)."""
+        flows = flows if isinstance(flows, list) else [flows]
+        ok = True
+        if check:
+            time.sleep(1)
+            ok = self.link_ok()
+        for f in flows:
+            if check and not ok:
+                f.valid, f.reason = False, "ping falhou logo APÓS a fase (UE perdeu o sinal durante ou depois)"
+                print(f"!! {f.name} marcada como INVÁLIDA: {f.reason}")
+            self.record(f)
+        if check and not ok:
+            print("!! O UE perdeu o sinal. Reinicie o gNB e depois o UE e repita; os dados coletados até aqui foram salvos.")
+        return ok
+
     # ---- execução ----
     def new_run(self, scen):
         a = self.a
@@ -138,12 +176,13 @@ class Ctx:
             csv.writer(f).writerow([
                 fl.name, fl.kind, fl.role, fl.rate if fl.rate is not None else "", fl.parallel, fl.dur,
                 f"{fl.t_start:.3f}", f"{fl.t_end:.3f}", fl.rc, int(fl.ok),
-                f"raw/{fl.name}.json", f"raw/{fl.name}.server.log"])
+                f"raw/{fl.name}.json", f"raw/{fl.name}.server.log", int(fl.valid), fl.reason])
 
     def start_sampler(self):
         a = self.a
         cmd = [sys.executable, str(HERE / "upf_sampler.py"), "--ns", a.upf_ns, "--regex", a.upf_regex,
-               "--iface", a.upf_iface, "--out", str(self.rundir)]
+               "--iface", a.upf_iface, "--out", str(self.rundir), "--extra-ns", a.ns,
+               "--extra", f"ue={a.ue_regex}", "--extra", f"gnb={a.gnb_regex}"]
         if a.upf_container:
             cmd += ["--container", a.upf_container]
         self.sampler = subprocess.Popen(cmd)
@@ -175,6 +214,14 @@ class Flow:
         self.dur, self.ip, self.rate, self.parallel = int(dur), ip, rate, parallel
         self.role, self.reverse = role, reverse
         self.ok, self.rc, self.t_start, self.t_end = False, -1, 0.0, 0.0
+        self.valid, self.reason = True, ""
+
+    def skip(self, why):
+        """Fase não executada (link fora do ar): registra como inválida."""
+        self.valid, self.reason, self.ok, self.rc = False, why, False, -2
+        self.t_start = self.t_end = time.time()
+        self.ctx.record(self)
+        print(f"!! {self.name} NÃO executada: {why}")
 
     def start(self):
         c, a = self.ctx, self.ctx.a
@@ -210,7 +257,6 @@ class Flow:
         if not self.ok:
             why = "estourou o tempo máximo" if self.rc == 124 else (err or f"exit {self.rc}")
             print(f"!! {self.name} falhou: {why}  (o log do receptor foi salvo e será usado)")
-        c.record(self)
         if not self.ok:
             c.cleanup_ue()
         return self.ok
@@ -242,10 +288,16 @@ def sc_cap(ctx):
     try:
         for n in (1, 4):
             f = Flow(ctx, f"tcp_P{n}", PORT_MAIN, "tcp", a.cap_dur, ctx.ue_ip, parallel=n)
+            if not ctx.gate(f):
+                break
             f.start()
-            if f.wait():
+            ran = f.wait()
+            valid = ctx.finalize([f])
+            if ran and valid:
                 d = json.load(open(f.jpath))
                 res[f"P{n}"] = d["end"]["sum_received"]["bits_per_second"] / 1e6
+            if not valid:
+                break
             time.sleep(a.gap)
     finally:
         finish(ctx)
@@ -265,7 +317,7 @@ def sc_phases(ctx, scen, spec):
     total = sum(s for _, s in phases) + a.gap * (len(phases) - 1)
     print(f">> C = {C:.1f} Mbps | fases (% de C : s): {phases}")
     ctx.new_run(scen); ctx.start_sampler()
-    probe = None
+    probe, aborted = None, False
     try:
         if ctx.probe_ip:
             probe = Flow(ctx, "probe_udp", PORT_PROBE, "udp", total + 4, ctx.probe_ip,
@@ -274,11 +326,20 @@ def sc_phases(ctx, scen, spec):
         for i, (pct, sec) in enumerate(phases, 1):
             rate = round(C * pct / 100.0, 1)
             f = Flow(ctx, f"p{i:02d}_udp_{pct:g}pct", PORT_MAIN, "udp", sec, ctx.ue_ip, rate=rate)
+            if not ctx.gate(f):
+                aborted = True
+                break
             f.start(); f.wait()
+            if not ctx.finalize([f]):
+                aborted = True
+                break
             if i < len(phases):
                 time.sleep(a.gap)
         if probe:
+            if aborted:
+                run(ctx.ue(["pkill", "iperf3"]))   # encerra a sonda que ainda estaria rodando
             probe.wait()
+            ctx.finalize([probe], check=False)
     finally:
         finish(ctx)
 
@@ -290,14 +351,21 @@ def sc_tcpsat(ctx):
     ctx.new_run("tcpsat"); ctx.start_sampler()
     try:
         f = Flow(ctx, "tcp_sozinho", PORT_MAIN, "tcp", a.tcp_dur, ctx.ue_ip, parallel=a.tcp_streams)
+        if not ctx.gate(f):
+            return
         f.start(); f.wait()
+        if not ctx.finalize([f]):
+            return
         time.sleep(a.gap + 3)
         agg = Flow(ctx, "udp_agressor", PORT_AGG, "udp", a.tcp_dur + 8, ctx.ue_ip, rate=agg_rate, role="aggressor")
+        main = Flow(ctx, "tcp_com_agressor", PORT_MAIN, "tcp", a.tcp_dur, ctx.ue_ip, parallel=a.tcp_streams)
+        if not ctx.gate([agg, main]):
+            return
         agg.start()
         time.sleep(3)   # o agressor já está saturando quando o TCP começa
-        f = Flow(ctx, "tcp_com_agressor", PORT_MAIN, "tcp", a.tcp_dur, ctx.ue_ip, parallel=a.tcp_streams)
-        f.start(); f.wait()
+        main.start(); main.wait()
         agg.wait()
+        ctx.finalize([agg, main])
     finally:
         finish(ctx)
 
@@ -348,6 +416,21 @@ def cmd_preflight(ctx):
         cmd = ["kubectl", "-n", a.upf_ns, "exec", p] + (["-c", a.upf_container] if a.upf_container else [])
         r = run(cmd + ["--", "sh", "-c", f"read x < /sys/class/net/{a.upf_iface}/statistics/rx_bytes; echo $x"])
         chk(f"contadores de {a.upf_iface} em {p}", r.stdout.strip().isdigit(), r.stdout.strip() or r.stderr.strip()[:80])
+    for p in pods:
+        cmd = ["kubectl", "-n", a.upf_ns, "exec", p] + (["-c", a.upf_container] if a.upf_container else [])
+        r = run(cmd + ["--", "sh", "-c", CPU_SH + 'echo "$cpu $thr $nthr"'])
+        v = r.stdout.split()
+        chk(f"CPU/throttling (cgroup) de {p}", len(v) == 3 and v[0].isdigit() and v[0] != "0",
+            f"cpu_usec={v[0] if v else '?'} nr_throttled={v[2] if len(v) == 3 else '?'}")
+    r = run(["kubectl", "-n", a.ns, "get", "pods", "-o", "name"])
+    nomes = [x.split("/")[-1] for x in r.stdout.split()]
+    for papel, rgx in (("UE", a.ue_regex), ("gNB", a.gnb_regex)):
+        achados = [n for n in nomes if re.search(rgx, n, re.I)]
+        chk(f"pods do {papel} (regex '{rgx}')", len(achados) >= 1, ", ".join(achados))
+        for n in achados:
+            r = run(["kubectl", "-n", a.ns, "exec", n, "--", "sh", "-c", CPU_SH + 'echo "$cpu $thr $nthr"'])
+            v = r.stdout.split()
+            chk(f"CPU (cgroup) de {n}", len(v) == 3 and v[0].isdigit() and v[0] != "0", f"cpu_usec={v[0] if v else '?'}")
     r = run(["kubectl", "-n", a.upf_ns, "get", "hpa"])
     print(f"[INFO] HPA no ns {a.upf_ns}: {r.stdout.strip() or r.stderr.strip() or 'nenhum'}")
     print("\n>> " + ("Tudo certo. Próximo: python3 lab5g.py cap" if not bad else f"Corrija: {', '.join(bad)}"))
@@ -365,6 +448,7 @@ def main():
          ("--srv-pod", env("SERVER_POD", "iperf-server")), ("--srv-ns", env("SERVER_NS", ns)),
          ("--dn-ip", env("DN_IP")), ("--upf-ns", env("UPF_NS", ns)), ("--upf-regex", env("UPF_REGEX", "upf")),
          ("--upf-iface", env("UPF_IFACE", "ogstun")), ("--upf-container", env("UPF_CONTAINER")),
+         ("--ue-regex", env("UE_REGEX")), ("--gnb-regex", env("GNB_REGEX")),
          ("--out", env("OUT", "runs")), ("--cap-mbps", env("CAP_MBPS")),
          ("--phases", env("PHASES", "25,50,75,100,125,150"))]
     for k, v in D:
@@ -376,6 +460,11 @@ def main():
     ap.add_argument("--probe-mbps", type=float, default=float(env("PROBE_MBPS", "2")))
     ap.add_argument("--no-plot", action="store_true")
     a = ap.parse_args()
+    nome = a.ue_pod.split("/")[-1]
+    if not a.ue_regex:     # pod do UE: deployment/<nome> -> pods "<nome>-<hash>"
+        a.ue_regex = f"^{re.escape(nome)}-" if "/" in a.ue_pod else f"^{re.escape(nome)}$"
+    if not a.gnb_regex:    # gNB: ueransim-gnb-<hash>, sem pegar o pod do UE (ueransim-gnb-ues-...)
+        a.gnb_regex = "^ueransim-gnb-(?!ues)"
 
     if a.cmd == "plot":
         import analyze

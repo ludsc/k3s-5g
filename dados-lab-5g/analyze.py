@@ -79,6 +79,28 @@ def rows_from_text(text):
     return rows
 
 
+OOO = re.compile(r"(\d+)\s+datagrams received out-of-order")
+
+
+def ooo_from_text(text):
+    """Pacotes fora de ordem contados pelo receptor (servidor iperf3 em modo texto).
+
+    O iperf3 só imprime a linha "N datagrams received out-of-order" quando N > 0, logo
+    depois do resumo final ("... receiver"). Então: resumo presente sem essa linha = 0;
+    sem resumo (teste interrompido, canal de controle caiu) = desconhecido (None).
+    Obs.: o iperf3 desconta da perda cada pacote que chega fora de ordem.
+    """
+    if not text:
+        return None
+    pos = text.rfind("receiver")
+    if pos < 0:
+        return None
+    ini = text.rfind("- - -", 0, pos)                # início do bloco de resumo
+    fim = text.find("Server listening", pos)         # no log do servidor, o próximo teste começa aqui
+    resumo = text[ini if ini >= 0 else pos: fim if fim >= 0 else len(text)]
+    return sum(int(n) for n in OOO.findall(resumo))
+
+
 def rows_from_json(srv):
     rows = []
     for iv in srv["intervals"]:
@@ -108,10 +130,14 @@ def udp_phase(ph, rd, payload):
         source = "iperf3 (JSON do servidor)"
     elif isinstance(d.get("server_output_text"), str):
         rows, source = rows_from_text(d["server_output_text"]), "iperf3 (texto do servidor)"
+        ooo = ooo_from_text(d["server_output_text"])
+    log = rd / ph["server_log"]
+    txt = log.read_text(errors="ignore") if log.exists() else ""
     if not rows:
-        log = rd / ph["server_log"]
-        rows = rows_from_text(log.read_text(errors="ignore")) if log.exists() else []
+        rows = rows_from_text(txt)
         source = "log do servidor (canal de controle caiu)" if rows else "sem dados do receptor"
+    if ooo is None:       # JSON/texto do cliente sem o contador: usa o log do servidor (correção)
+        ooo = ooo_from_text(txt)
     rows = [r for r in rows if r["t"] < dur]      # o servidor imprime zeros depois do fim do envio
     by_t = {int(r["t"]): r for r in rows}
     active = [r for r in rows if r["pkts"] > 0]
@@ -130,7 +156,8 @@ def udp_phase(ph, rd, payload):
         jitter_p95_ms=round(pctl([r["jitter"] for r in active], 95), 3),
         jitter_max_ms=round(max([r["jitter"] for r in active], default=0), 3),
         seg_sem_trafego=zero, fora_de_ordem=ooo if ooo is not None else "n/d",
-        teste_ok=ph["ok"], fonte=source)
+        fora_de_ordem_pct=round(100.0 * ooo / (total - lost), 4) if ooo is not None and total - lost > 0 else "n/d",
+        teste_ok=ph["ok"], valida=ph["valida"], motivo=ph["motivo"], fonte=source)
     return dict(p=ph, rows=rows, s=s)
 
 
@@ -165,7 +192,8 @@ def tcp_phase(ph, rd):
              rtt_medio_ms=round(mean(rtt_m), 2), rtt_p95_ms=round(pctl(rtt_x, 95), 2),
              rtt_max_ms=round(max(rtt_x, default=0), 2),
              cwnd_min_kb=round(min([min(st["cwnd"]) for st in streams.values()], default=0), 1),
-             quedas_de_cwnd=drops, seg_sem_trafego=zero, teste_ok=ph["ok"])
+             quedas_de_cwnd=drops, seg_sem_trafego=zero, teste_ok=ph["ok"],
+             valida=ph["valida"], motivo=ph["motivo"])
     return dict(p=ph, t=t, agg=agg, retr=retr, rtt=rtt_m, rtt_max=rtt_x, streams=streams, s=s)
 
 
@@ -176,7 +204,8 @@ def load_upf(rd):
         try:
             pods.setdefault(r["pod"], []).append(
                 (float(r["ts"]), *(int(r[k]) for k in ("rx_bytes", "tx_bytes", "rx_pkts", "tx_pkts",
-                                                          "rx_drop", "tx_drop", "cpu_usec"))))
+                                                          "rx_drop", "tx_drop", "cpu_usec")),
+                 int(r.get("thr_usec") or 0), int(r.get("nr_thr") or 0)))
         except (ValueError, KeyError):
             pass
     return pods
@@ -185,7 +214,7 @@ def load_upf(rd):
 def upf_series(pods, t0):
     out = {}
     for pod, rows in pods.items():
-        x, rx, tx, cpu = [], [], [], []
+        x, rx, tx, cpu, thr = [], [], [], [], []
         for a, b in zip(rows, rows[1:]):
             dt = b[0] - a[0]
             if dt <= 0.2:
@@ -194,12 +223,13 @@ def upf_series(pods, t0):
             rx.append(max(b[1] - a[1], 0) * 8 / dt / 1e6)
             tx.append(max(b[2] - a[2], 0) * 8 / dt / 1e6)
             cpu.append(max(b[7] - a[7], 0) / dt / 1e6)
-        out[pod] = (x, rx, tx, cpu)
+            thr.append(max(b[8] - a[8], 0) / dt / 1e6)       # fração do tempo estrangulado
+        out[pod] = (x, rx, tx, cpu, thr)
     return out
 
 
 def upf_delta(pods, a, b):
-    d = dict(upf_rx_pkts=0, upf_tx_pkts=0, upf_rx_drop=0, upf_cpu_cores=0.0)
+    d = dict(upf_rx_pkts=0, upf_tx_pkts=0, upf_rx_drop=0, upf_cpu_cores=0.0, upf_throttled_pct=0.0)
     if b <= a:
         return d
     for rows in pods.values():
@@ -215,7 +245,75 @@ def upf_delta(pods, a, b):
         d["upf_rx_drop"] += r1[5] - r0[5]
         if r1[0] > r0[0]:
             d["upf_cpu_cores"] += (r1[7] - r0[7]) / (r1[0] - r0[0]) / 1e6
+            d["upf_throttled_pct"] += 100.0 * (r1[8] - r0[8]) / (r1[0] - r0[0]) / 1e6
     d["upf_cpu_cores"] = round(d["upf_cpu_cores"], 2)
+    d["upf_throttled_pct"] = round(d["upf_throttled_pct"] / max(len(pods), 1), 1)
+    return d
+
+
+def cores_in(rows, idx, a, b):
+    """CPU (núcleos) a cada ~1 s dentro de [a, b], a partir do contador acumulado na posição idx."""
+    out = []
+    for p, q in zip(rows, rows[1:]):
+        dt = q[0] - p[0]
+        if dt > 0.2 and q[0] > a and p[0] < b:
+            out.append(max(q[idx] - p[idx], 0) / dt / 1e6)
+    return out
+
+
+# ------------------------------------------------------------------ CPU de UE e gNB
+RAN_LIMITE = 0.9      # núcleos: acima disso o emulador de RAN (UERANSIM) está perto do teto de 1 thread
+
+
+def load_cpu(rd):
+    comp = {}
+    for r in read_csv(rd / "pods_cpu.csv"):
+        try:
+            comp.setdefault((r["role"], r["pod"]), []).append(
+                (float(r["ts"]), int(r["cpu_usec"]), int(r["thr_usec"]), int(r["nr_thr"])))
+        except (ValueError, KeyError):
+            pass
+    return comp
+
+
+def cpu_series(comp, t0):
+    out = {}
+    for key, rows in comp.items():
+        x, cpu = [], []
+        for a, b in zip(rows, rows[1:]):
+            dt = b[0] - a[0]
+            if dt > 0.2:
+                x.append(b[0] - t0)
+                cpu.append(max(b[1] - a[1], 0) / dt / 1e6)
+        out[key] = (x, cpu)
+    return out
+
+
+def cpu_extra(pods, comp, a, b):
+    """Colunas de CPU por papel (ue, gnb, upf) para uma fase [a, b]."""
+    d = {}
+    for role in ("ue", "gnb"):
+        med, pico = 0.0, 0.0
+        for (r, _), rows in comp.items():
+            if r != role:
+                continue
+            c = cores_in(rows, 1, a, b)
+            if c:
+                med += sum(c) / len(c)
+                pico = max(pico, max(c))
+        d[f"{role}_cpu_media"] = round(med, 2) if comp else ""
+        d[f"{role}_cpu_pico"] = round(pico, 2) if comp else ""
+    upf_pico = 0.0
+    for rows in pods.values():
+        c = cores_in(rows, 7, a, b)
+        if c:
+            upf_pico = max(upf_pico, max(c))
+    d["upf_cpu_pico"] = round(upf_pico, 2) if pods else ""
+    if comp:
+        pic = max(d["ue_cpu_pico"] or 0, d["gnb_cpu_pico"] or 0)
+        d["ran_no_limite"] = "SIM" if pic >= RAN_LIMITE else "não"
+    else:
+        d["ran_no_limite"] = "n/d"
     return d
 
 
@@ -229,8 +327,8 @@ def concat(parts):
     return xs, ys
 
 
-def overview(gd, t0, udp, tcp, pods, events, phases):
-    P = {k: [] for k in ("tput", "loss", "jitter", "retr", "rtt", "upf_tp", "upf_cpu")}
+def overview(gd, t0, udp, tcp, pods, comp, events, phases):
+    P = {k: [] for k in ("tput", "loss", "jitter", "retr", "rtt", "upf_tp", "cpu", "thr")}
     grp = {}
     for u in udp:
         ph, rows = u["p"], u["rows"]
@@ -255,14 +353,19 @@ def overview(gd, t0, udp, tcp, pods, events, phases):
             P["tput"].append((f"TCP {ph['name']}", xs, tp["agg"], {}))
             P["retr"].append((ph["name"], xs, tp["retr"], {}))
             P["rtt"].append((ph["name"], xs, tp["rtt"], {}))
-    for pod, (x, rx, tx, cpu) in upf_series(pods, t0).items():
+    for pod, (x, rx, tx, cpu, thr) in upf_series(pods, t0).items():
         short = pod if len(pod) <= 26 else pod[-26:]
         P["upf_tp"].append((f"{short} UL(rx)", x, rx, {}))
         P["upf_tp"].append((f"{short} DL(tx)", x, tx, dict(ls=":")))
-        P["upf_cpu"].append((short, x, cpu, {}))
+        P["cpu"].append((f"UPF {short}", x, cpu, {}))
+        if any(v > 0 for v in thr):
+            P["thr"].append((f"UPF {short}", x, [100 * v for v in thr], {}))
+    for (role, pod), (x, cpu) in cpu_series(comp, t0).items():
+        P["cpu"].append((f"{role.upper()} {pod if len(pod) <= 30 else pod[-30:]}", x, cpu, dict(ls="--")))
     titles = dict(tput="Vazão (Mbps)", loss="Perda UDP (%)", jitter="Jitter UDP (ms)",
                   retr="Retransmissões TCP (/s)", rtt="RTT TCP médio (ms)",
-                  upf_tp="UPF por pod: vazão em ogstun (Mbps)", upf_cpu="UPF por pod: CPU (cores)")
+                  upf_tp="UPF por pod: vazão em ogstun (Mbps)", cpu="CPU por componente (núcleos)",
+                  thr="UPF: % do tempo estrangulada pelo limite de CPU")
     keys = [k for k in P if P[k]]
     if not keys:
         return
@@ -270,13 +373,19 @@ def overview(gd, t0, udp, tcp, pods, events, phases):
     for ax, k in zip(axes[:, 0], keys):
         for lab, x, y, kw in P[k]:
             ax.plot(x, y, label=lab, **kw)
+        if k == "cpu":
+            ax.axhline(1.0, color="gray", ls=":", lw=1)
         ax.set_ylabel(titles[k], fontsize=8); ax.grid(alpha=0.3); ax.legend(fontsize=7, loc="upper left", ncol=2)
     top = axes[0, 0]
     for ph in phases:
         x = ph["t_start"] - t0
         for ax in axes[:, 0]:
             ax.axvline(x, color="k", ls=":", alpha=0.25)
-        top.text(x, 0.98, ph["name"], transform=top.get_xaxis_transform(), rotation=90, va="top", fontsize=6)
+        rot = ph["name"] if ph["valida"] else ph["name"] + " (INVÁLIDA)"
+        if not ph["valida"]:
+            for ax in axes[:, 0]:
+                ax.axvspan(x, x + (ph["dur_s"] or 0), color="red", alpha=0.08)
+        top.text(x, 0.98, rot, transform=top.get_xaxis_transform(), rotation=90, va="top", fontsize=6)
     seen = set()
     for e in events:
         if e["event"] in ("pod_added", "pod_removed"):
@@ -324,7 +433,8 @@ def tcp_compare(gd, tcps):
 
 
 def udp_by_rate(gd, summ):
-    xs = sorted([s for s in summ if s["oferecido_mbps"] and s["papel"] == "main"], key=lambda s: s["oferecido_mbps"])
+    xs = sorted([s for s in summ if s["oferecido_mbps"] and s["papel"] == "main" and s["valida"]],
+                key=lambda s: s["oferecido_mbps"])
     if len(xs) < 2:
         return
     x = [s["oferecido_mbps"] for s in xs]
@@ -370,24 +480,31 @@ def analyze(rd):
     for p in phases:
         for k in ("rate_mbps", "t_start", "t_end", "dur_s"):
             p[k] = fnum(p.get(k))
+        p["valida"] = str(p.get("valida") or "1") != "0"      # execuções antigas (sem a coluna) = válidas
+        p["motivo"] = p.get("motivo") or ""
     t0 = min(p["t_start"] for p in phases)
     pods, events = load_upf(rd), read_csv(rd / "events.csv")
+    comp = load_cpu(rd)
     gd = rd / "graficos"; gd.mkdir(exist_ok=True)
 
     udp = [udp_phase(p, rd, payload) for p in phases if p["kind"] == "udp"]
     tcp = [tcp_phase(p, rd) for p in phases if p["kind"] == "tcp"]
-    for u in udp:                       # contadores da UPF em cada fase UDP
+    for u in udp:                       # contadores e CPU (UPF, UE, gNB) em cada fase UDP
         p = u["p"]
-        u["s"].update(upf_delta(pods, p["t_start"] + 0.5, p["t_end"])) if pods else None
+        if pods:
+            u["s"].update(upf_delta(pods, p["t_start"] + 0.5, p["t_end"]))
+        u["s"].update(cpu_extra(pods, comp, p["t_start"] + 0.5, p["t_end"]))
     for t in tcp:
         p = t["p"]
-        t["s"].update(upf_delta(pods, p["t_start"], p["t_end"])) if pods else None
+        if pods:
+            t["s"].update(upf_delta(pods, p["t_start"], p["t_end"]))
+        t["s"].update(cpu_extra(pods, comp, p["t_start"], p["t_end"]))
 
-    overview(gd, t0, udp, tcp, pods, events, phases)
+    overview(gd, t0, udp, tcp, pods, comp, events, phases)
     for t in tcp:
         if t["t"]:
             tcp_plot(gd, t)
-    mains = [t for t in tcp if t["p"]["role"] == "main" and t["t"]]
+    mains = [t for t in tcp if t["p"]["role"] == "main" and t["t"] and t["p"]["valida"]]
     if len(mains) >= 2:
         tcp_compare(gd, mains)
     su, st = [u["s"] for u in udp], [t["s"] for t in tcp]
@@ -397,14 +514,25 @@ def analyze(rd):
     if su:
         print("\n=== UDP (receptor) ===")
         table(su, ["fase", "papel", "oferecido_mbps", "recebido_mbps", "perda_pct", "pacotes_perdidos",
-                   "jitter_medio_ms", "jitter_p95_ms", "seg_sem_trafego", "fora_de_ordem", "teste_ok"])
+                   "jitter_medio_ms", "jitter_p95_ms", "seg_sem_trafego", "fora_de_ordem", "teste_ok", "valida"])
         print("\nContadores da UPF (soma dos pods) e fonte dos dados:")
         table(su, ["fase", "pacotes_enviados", "upf_rx_pkts", "pacotes_recebidos", "upf_rx_drop", "upf_cpu_cores", "fonte"])
+    if comp or pods:
+        print("\n=== CPU por componente (núcleos) — quem satura primeiro? ===")
+        table(su + st, ["fase", "valida", "ue_cpu_pico", "gnb_cpu_pico", "upf_cpu_pico", "upf_cpu_cores",
+                        "upf_throttled_pct", "ran_no_limite"])
+        print(f"   ran_no_limite = SIM quando UE ou gNB passaram de {RAN_LIMITE} núcleo (UERANSIM perto do teto): "
+              "a perda dessa fase pode ser do emulador, não da UPF.")
     if st:
         print("\n=== TCP (emissor) ===")
         table(st, ["fase", "papel", "fluxos", "vazao_media_mbps", "vazao_min_mbps", "retransmissoes_total",
                    "retrans_por_s_max", "rtt_medio_ms", "rtt_max_ms", "cwnd_min_kb", "quedas_de_cwnd",
-                   "seg_sem_trafego", "teste_ok"])
+                   "seg_sem_trafego", "teste_ok", "valida"])
+    invalidas = [p for p in phases if not p["valida"]]
+    if invalidas:
+        print("\n=== FASES INVÁLIDAS (excluídas das médias e dos gráficos agregados) ===")
+        for p in invalidas:
+            print(f"  {p['name']}: {p['motivo']}")
     if events:
         print("\n=== Eventos de UPF ===")
         for e in events:

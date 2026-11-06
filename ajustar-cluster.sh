@@ -13,8 +13,13 @@ helm dependency update 5g-charts/charts/open5gs
 sleep 5
 
 echo "instalando cluster open5gs"
-helm install open5gs 5g-charts/charts/open5gs -f 5gSA-values.yaml
+helm install open5gs 5g-charts/charts/open5gs -f 5gSA-values.yaml --wait --timeout 10m
 
-echo "instalando ueransin"
-sleep 60 segs
-helm install ueransim-gnb 5g-charts/charts/ueransim-gnb/ -f gnb-ues-values.yaml
+echo "aguardando o core estabilizar (populate, associação PFCP)"
+sleep 45
+
+echo "instalando ueransim"
+helm install ueransim-gnb 5g-charts/charts/ueransim-gnb/ -f gnb-ues-values.yaml --wait --timeout 5m
+
+sleep 20
+kubectl logs deployment/ueransim-gnb-ues | grep -i "tun interface"
